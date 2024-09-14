@@ -15,7 +15,8 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 
 export default function Home() {
-    const dataSources = "http://vis.lab.djosix.com:2024/data/iris.csv";
+    const dataSources = "/data/iris.csv";
+    // const dataSources = "http://vis.lab.djosix.com:2024/data/iris.csv";
     const { csvData, isLoading } = useCSVFile(dataSources);
 
     const attributes = [
