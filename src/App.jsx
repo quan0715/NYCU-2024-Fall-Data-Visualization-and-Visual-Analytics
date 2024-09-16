@@ -1,7 +1,15 @@
-import React, { useState, useEffect, useRef, useTransition } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useTransition,
+  useCallback,
+} from "react";
 import * as d3 from "d3";
 import Papa from "papaparse";
-
+import DraggableAttribute from "./DraggableAttribute.jsx";
+import { DndProvider } from "react-dnd";
+import { HTML5Backend } from "react-dnd-html5-backend";
 function useCSVFile(fileName) {
   const [isLoading, startFetchingData] = useTransition();
   const [csvData, setCsvData] = useState([]);
@@ -33,27 +41,40 @@ function useCSVFile(fileName) {
   return { csvData, isLoading };
 }
 
-export function ScatterChart({ csvData, xAttribute, yAttribute }) {
+export function ParallelCoordinates({ csvData, attributes }) {
   const width = 600;
   const height = 450;
   const margin = { top: 20, right: 30, bottom: 80, left: 50 };
   const gx = useRef();
-  const gy = useRef();
+  // const [Attributes, setAttributes] = useState(attributes);
+
+  // const gy = useRef();
   const svgRef = useRef();
+
+  // const attrRefs = Attributes.map(() => useRef());
+  const attrRefs = useRef(null);
+  function getMap() {
+    if (!attrRefs.current) {
+      // Initialize the Map on first usage.
+      attrRefs.current = new Map();
+    }
+    return attrRefs.current;
+  }
   const [tooltipContent, setTooltipContent] = useState("");
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
   const [tooltipVisible, setTooltipVisible] = useState(false);
-  const xValue = (d) => +d[xAttribute];
-  const yValue = (d) => +d[yAttribute];
   const categories = [...new Set(csvData.map((d) => d.class))];
+  const yScales = {};
+  attributes.forEach((attribute) => {
+    yScales[attribute] = d3
+      .scaleLinear()
+      .domain(d3.extent(csvData, (d) => +d[attribute]))
+      .range([height - margin.bottom, margin.top]); // Note the range is from bottom to top
+  });
   const xScale = d3
-    .scaleLinear()
-    .domain(d3.extent(csvData, xValue))
-    .range([margin.left, width - margin.right]);
-  const yScale = d3
-    .scaleLinear()
-    .domain(d3.extent(csvData, yValue))
-    .range([height - margin.bottom, margin.top]);
+    .scalePoint()
+    .range([margin.left, width - margin.right])
+    .domain(attributes);
   const colorScale = d3.scaleOrdinal(d3.schemeTableau10).domain(categories);
 
   const handleMouseOver = (event, d) => {
@@ -63,12 +84,11 @@ export function ScatterChart({ csvData, xAttribute, yAttribute }) {
       <>
         <div>Data: {csvData.indexOf(d)}</div>
         <div>Class: {d.class}</div>
-        <div>
-          {xAttribute}: {xValue(d)}
-        </div>
-        <div>
-          {yAttribute}: {yValue(d)}
-        </div>
+        {attributes.map((attribute) => (
+          <div key={attribute}>
+            {attribute}: {d[attribute]}
+          </div>
+        ))}
       </>
     );
     setTooltipPosition({
@@ -92,14 +112,14 @@ export function ScatterChart({ csvData, xAttribute, yAttribute }) {
     setTooltipVisible(false);
   };
 
-  useEffect(
-    () => void d3.select(gx.current).call(d3.axisBottom(xScale)),
-    [gx, xScale]
-  );
-  useEffect(
-    () => void d3.select(gy.current).call(d3.axisLeft(yScale)),
-    [gy, yScale]
-  );
+  useEffect(() => {
+    d3.select(gx.current).call(d3.axisBottom(xScale));
+
+    attributes.map((attribute, i) => {
+      let node = getMap().get(attribute);
+      d3.select(node).call(d3.axisLeft().scale(yScales[attribute]));
+    });
+  }, [attrRefs, attributes, xScale, gx, yScales]);
 
   const labelStyle = {
     textAnchor: "middle",
@@ -131,40 +151,50 @@ export function ScatterChart({ csvData, xAttribute, yAttribute }) {
         height={height}
         className={"bg-background"}
       >
-        <g
-          ref={gx}
-          transform={`translate(0,${height - margin.bottom})`}
-          text={xAttribute}
-          textAnchor={"middle"}
-        >
-          <text x={width / 2} y={40} {...labelStyle}>
-            {xAttribute}
+        <g ref={gx} transform={`translate(0,${height - margin.bottom})`}>
+          <text x={width / 2} y={40} style={labelStyle}>
+            attributes
           </text>
         </g>
-        <g ref={gy} transform={`translate(${margin.left},0)`} text={yAttribute}>
-          <text
-            x={-height / 2}
-            y={-40}
-            transform={"rotate(-90)"}
-            {...labelStyle}
+        {attributes.map((attribute, i) => (
+          <g
+            key={attribute}
+            transform={"translate(" + xScale(attribute) + ",0 )"}
+            // ref={(el) => (attrRefs.current[attribute] = el)}
+            ref={(node) => {
+              const map = getMap();
+              if (node) {
+                map.set(attribute, node);
+              } else {
+                map.delete(attribute);
+              }
+            }}
           >
-            {yAttribute}
-          </text>
-        </g>
+            <text style={labelStyle}></text>
+          </g>
+        ))}
         <g>
-          {csvData.map((d, i) => (
-            <circle
-              key={i}
-              cx={xScale(xValue(d))}
-              cy={yScale(yValue(d))}
-              r="4.5"
-              fill={colorScale(d.class)}
-              opacity={0.8}
-              onMouseOver={(event) => handleMouseOver(event, d)}
-              onMouseMove={handleMouseMove}
-              onMouseOut={handleMouseOut}
-            />
-          ))}
+          {csvData.map((d, i) => {
+            const linePath = d3.line()(
+              attributes.map((attribute) => [
+                xScale(attribute),
+                yScales[attribute](d[attribute]),
+              ])
+            );
+            return (
+              <path
+                key={i}
+                d={linePath}
+                fill="none"
+                stroke={colorScale(d.class)}
+                strokeWidth={1}
+                opacity={0.7}
+                onMouseOver={(event) => handleMouseOver(event, d)}
+                onMouseMove={handleMouseMove}
+                onMouseOut={handleMouseOut}
+              />
+            );
+          })}
         </g>
         <g
           name={"legend"}
@@ -252,61 +282,64 @@ function Select({ label, options, value, onChange }) {
 function App() {
   const dataSources = "http://vis.lab.djosix.com:2024/data/iris.csv";
   const { csvData, isLoading } = useCSVFile(dataSources);
-
-  const attributes = [
-    "sepal length",
-    "sepal width",
+  const [attributes, setAttributes] = useState([
     "petal length",
     "petal width",
-  ];
-  const [xAttribute, setXAttribute] = useState(attributes[0]);
-  const [yAttribute, setYAttribute] = useState(attributes[1]);
-
+    "sepal length",
+    "sepal width",
+  ]);
+  const moveAttribute = (dragIndex, hoverIndex) => {
+    const updatedAttributes = [...attributes];
+    const [removed] = updatedAttributes.splice(dragIndex, 1);
+    updatedAttributes.splice(hoverIndex, 0, removed);
+    setAttributes(updatedAttributes);
+  };
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        height: "100vh",
-        width: "100vw",
-      }}
-    >
-      <h3>Scatter Plot of Iris Dataset</h3>
+    <DndProvider backend={HTML5Backend}>
       <div
         style={{
           display: "flex",
-          gap: "12px",
-          width: "600px",
-          flexDirection: "row",
+          flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          marginBottom: "20px",
+          height: "100vh",
+          width: "100vw",
         }}
       >
-        <Select
-          label={"X-axis"}
-          options={attributes}
-          value={xAttribute}
-          onChange={setXAttribute}
-        />
-        <Select
-          label={"Y-axis"}
-          options={attributes}
-          value={yAttribute}
-          onChange={setYAttribute}
-        />
-      </div>
+        <h3>LAB2:Parallel Coordinate Plots of Iris Dataset</h3>
+        <div
+          style={{
+            display: "flex",
+            gap: "12px",
+            width: "600px",
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "center",
+            marginBottom: "20px",
+          }}
+        ></div>
+        <div
+          className="attributes-list"
+          style={{
+            display: "flex",
+            marginBottom: "20px",
+          }}
+        >
+          {attributes.map((attr, index) => (
+            <DraggableAttribute
+              key={attr}
+              attribute={attr}
+              index={index}
+              moveAttribute={moveAttribute}
+            />
+          ))}
+        </div>
 
-      {!isLoading && (
-        <ScatterChart
-          csvData={csvData}
-          xAttribute={xAttribute}
-          yAttribute={yAttribute}
-        />
-      )}
-    </div>
+        {!isLoading && (
+          <ParallelCoordinates csvData={csvData} attributes={attributes} />
+        )}
+      </div>
+    </DndProvider>
   );
 }
 
