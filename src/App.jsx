@@ -1,9 +1,10 @@
 import React from "react";
 import { useCSVFile } from "./useCsvFile";
-import { ScatterPlotMatrix } from "./ScatterPlotMatrix";
+import { StackedBarChart } from "./StackedBarChart";
 
 function App() {
-  const dataSources = "http://vis.lab.djosix.com:2024/data/iris.csv";
+  const dataSources =
+    "http://vis.lab.djosix.com:2024/data/TIMES_WorldUniversityRankings_2024.csv";
   // const dataSources = "./iris.csv";
   const { csvData, isLoading } = useCSVFile(dataSources);
   return (
@@ -17,7 +18,7 @@ function App() {
         width: "100vw",
       }}
     >
-      <h3>LAB4:Brushable Scatter Plot Matrix</h3>
+      <h3>LAB5:Stacked Bar Charts</h3>
       <div
         style={{
           display: "flex",
@@ -32,11 +33,7 @@ function App() {
           // marginBottom: "20px",
         }}
       >
-        {isLoading ? (
-          <div>Loading...</div>
-        ) : (
-          <ScatterPlotMatrix data={csvData} />
-        )}
+        {isLoading ? <div>Loading...</div> : <StackedBarChart data={csvData} />}
       </div>
     </div>
   );
