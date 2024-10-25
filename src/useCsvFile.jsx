@@ -26,7 +26,7 @@ export function useCSVFile(fileName, attribute = null) {
 
         skipEmptyLines: true,
         complete: function (results) {
-          console.log(results.data);
+          // console.log(results.data);
           setCsvData(results.data); // Set parsed CSV data
         },
       });

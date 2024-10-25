@@ -1,10 +1,10 @@
 import React from "react";
 import { useCSVFile } from "./useCsvFile";
-import { StackedBarChart } from "./StackedBarChart";
+import { ThemeRiver } from "./ThemeRiver";
+import { DndProvider } from "react-dnd";
 
 function App() {
-  const dataSources =
-    "http://vis.lab.djosix.com:2024/data/TIMES_WorldUniversityRankings_2024.csv";
+  const dataSources = "http://vis.lab.djosix.com:2024/data/ma_lga_12345.csv";
   // const dataSources = "./iris.csv";
   const { csvData, isLoading } = useCSVFile(dataSources);
   return (
@@ -18,7 +18,7 @@ function App() {
         width: "100vw",
       }}
     >
-      <h3>LAB5:Stacked Bar Charts</h3>
+      <h3>LAB6: ThemeRiver Tutorial</h3>
       <div
         style={{
           display: "flex",
@@ -33,7 +33,7 @@ function App() {
           // marginBottom: "20px",
         }}
       >
-        {isLoading ? <div>Loading...</div> : <StackedBarChart data={csvData} />}
+        {isLoading ? <div>Loading...</div> : <ThemeRiver data={csvData} />}
       </div>
     </div>
   );
