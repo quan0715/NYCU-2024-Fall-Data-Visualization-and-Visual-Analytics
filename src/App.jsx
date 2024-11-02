@@ -1,11 +1,10 @@
 import React from "react";
 import { useCSVFile } from "./useCsvFile";
-import { ThemeRiver } from "./ThemeRiver";
-import { DndProvider } from "react-dnd";
-
+import { AirPollutionHorizonChart } from "./AirPollutionHorizonChart";
+import { Mosaic } from "react-loading-indicators";
 function App() {
-  const dataSources = "http://vis.lab.djosix.com:2024/data/ma_lga_12345.csv";
-  // const dataSources = "./iris.csv";
+  // const dataSources = "./air-pollution.csv";
+  const dataSources = "http://vis.lab.djosix.com:2024/data/air-pollution.csv";
   const { csvData, isLoading } = useCSVFile(dataSources);
   return (
     <div
@@ -14,26 +13,31 @@ function App() {
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        height: "100vh",
+        minHeight: "100vh",
+        height: "100%",
         width: "100vw",
       }}
     >
-      <h3>LAB6: ThemeRiver Tutorial</h3>
+      
+      <h3>LAB7: Horizon Charts</h3>
       <div
         style={{
           display: "flex",
           gap: "12px",
           width: "100%",
           height: "100%",
-          overflow: "scroll",
+          overflow: "auto",
           flexDirection: "row",
           alignItems: "center",
           justifyContent: "center",
           padding: "10px",
-          // marginBottom: "20px",
         }}
       >
-        {isLoading ? <div>Loading...</div> : <ThemeRiver data={csvData} />}
+        {isLoading || !csvData || !csvData.length ? (
+          <Mosaic color={["#33CCCC", "#33CC36", "#B8CC33", "#FCCA00"]} />
+        ) : (
+          <AirPollutionHorizonChart csvData={csvData} />
+        )}
       </div>
     </div>
   );
